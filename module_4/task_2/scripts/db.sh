@@ -11,7 +11,7 @@ declare -A COMMANDS_DESCRIPTION_MAP
 COMMANDS_DESCRIPTION_MAP[help]="Prints instructions on how to use this script. You can specify command to get help for"
 COMMANDS_DESCRIPTION_MAP[add]="Adds new values to user database(one record consists of two propmts: username, role)."
 COMMANDS_DESCRIPTION_MAP[backup]="Creates a new file, named %date%-users.db.backup which is a copy of current users.db."
-COMMANDS_DESCRIPTION_MAP[restore]="Takes the last created backup file and replaces users.db with it. If there are no backups - informts about that"
+COMMANDS_DESCRIPTION_MAP[restore]="Takes the last created backup file and replaces users.db with it. If there are no backups - informs about that"
 COMMANDS_DESCRIPTION_MAP[find]="Returns all matched entries from user database based on input"
 COMMANDS_DESCRIPTION_MAP[list]="Prints content of the users database in structured format. Arg --inverse reverses the order of the output"
 
@@ -23,6 +23,25 @@ isLatin() {
         return 0
     else 
         return 1
+    fi
+}
+
+handleDatabaseAbsence() {
+    local propmptReply
+
+    read -p "database file does not exist. Would you like to create it? (y/n): " propmptReply
+
+    if [[ ! $propmptReply =~ ^[Yy]$ ]]; then
+        exit 0
+    fi
+
+    mkdir -p "$DATABASE_DIRECTORY" && touch "$DATABASE_PATH"
+    echo "database created"
+}
+
+checkDatabase() {
+    if [ ! -f "$DATABASE_PATH" ]; then
+        handleDatabaseAbsence
     fi
 }
 
@@ -108,6 +127,8 @@ restoreDatabase() {
         echo "database restored based on the latest backup"
     fi
 }
+
+checkDatabase
 
 case $SCRIPT_COMMAND in
     add) addUserToDatabase;;
