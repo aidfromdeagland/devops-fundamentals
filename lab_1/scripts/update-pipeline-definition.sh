@@ -92,4 +92,7 @@ shouldPollForChangesBoolean=true
 fi
 jq --arg pollForSourceChanges "$shouldPollForChangesBoolean" '.pipeline.stages[0].actions[0].configuration.PollForSourceChanges = $pollForSourceChanges' "$customPipelineJson" > tmp.$$.json && mv tmp.$$.json "$customPipelineJson"
 
+#show updated pipeline
+cat "$customPipelineJson" | jq
+
 printf "  ${grn}pipeline update successfuly finished\n${end}"
