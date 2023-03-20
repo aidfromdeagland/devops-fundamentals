@@ -23,6 +23,8 @@ checkJQ() {
     printf "  ${red}'jq' not found! (json parser)\n${end}"
     printf "    Ubuntu Installation: sudo apt install jq\n"
     printf "    Redhat Installation: sudo yum install jq\n"
+    printf "    MacOs Installation: brew install jq\n"
+    printf "    Windows Installation: curl -L -o /usr/bin/jq.exe https://github.com/stedolan/jq/releases/latest/download/jq-win64.exe\n"
 
     exit 1
   fi
@@ -41,11 +43,6 @@ if [[ ! -f "$pipelineJson" ]]; then
     exit 1
 fi
 
-defaultBranchName="main"
-echo -n "Enter a source branch to use (default: $defaultBranchName): "
-read -r branchName
-branchName=${branchName:-$defaultBranchName}
-
 # remove metadata
 jq 'del(.metadata)' "$pipelineJson" > tmp.$$.json && mv tmp.$$.json "$customPipelineJson"
 
@@ -53,10 +50,14 @@ jq 'del(.metadata)' "$pipelineJson" > tmp.$$.json && mv tmp.$$.json "$customPipe
 jq '.pipeline.version += 1' "$customPipelineJson" > tmp.$$.json && mv tmp.$$.json "$customPipelineJson"
 
 # upd source branch
-jq --arg branchName "$branchName" '.pipeline.stages[0].actions[0].configuration.BranchName = $branchName' "$customPipelineJson" > tmp.$$.json && mv tmp.$$.json "$customPipelineJson"
+defaultBranchName="main"
+echo -n "Enter a source branch to use (default: $defaultBranchName): "
+read -r branchName
+branchName=${branchName:-$defaultBranchName}
+jq --arg branch "$branchName" '.pipeline.stages[0].actions[0].configuration.Branch = $branch' "$customPipelineJson" > tmp.$$.json && mv tmp.$$.json "$customPipelineJson"
 
 defaultProceedOpt="y"
-echo -n "Proceed with ${pipelineName} pipeline update (y/n) (default: $defaultProceedOpt): "
+echo -n "Proceed with ${pipelineName} pipeline update? (y/n) (default: $defaultProceedOpt): "
 read -r doProceed
 doProceed=${doProceed:-$defaultProceedOpt}
 
@@ -67,7 +68,7 @@ fi
 
 #upd owner
 defaultGitHubOwner="aidfromdeagland"
-echo -n "Enter a source branch to use (default: $defaultGitHubOwner): "
+echo -n "Enter a github owner name (default: $defaultGitHubOwner): "
 read -r githubOwner
 githubOwner=${githubOwner:-$defaultGitHubOwner}
 jq --arg owner "$githubOwner" '.pipeline.stages[0].actions[0].configuration.Owner = $owner' "$customPipelineJson" > tmp.$$.json && mv tmp.$$.json "$customPipelineJson"
@@ -75,18 +76,20 @@ jq --arg owner "$githubOwner" '.pipeline.stages[0].actions[0].configuration.Owne
 #upd repository
 defaultRepository="shop-angular-cloudfront"
 echo -n "Enter a repository name to use (default: $defaultRepository): "
-read -r repository
-repository=${repository:-$defaultRepository}
-jq --arg repo "$githubOwner" '.pipeline.stages[0].actions[0].configuration.Repo = $repo' "$customPipelineJson" > tmp.$$.json && mv tmp.$$.json "$customPipelineJson"
+read -r githubRepository
+githubRepository=${githubRepository:-$defaultRepository}
+jq --arg repo "$githubRepository" '.pipeline.stages[0].actions[0].configuration.Repo = $repo' "$customPipelineJson" > tmp.$$.json && mv tmp.$$.json "$customPipelineJson"
 
 #upd pollForChanges
-defaultPollForChangesOpt="y"
+defaultPollForChangesOpt="n"
+shouldPollForChangesBoolean=false
 echo -n "Should pipeline poll for changes? (y/n) (default: $defaultPollForChangesOpt): "
 read -r shouldPollForChanges
 shouldPollForChanges=${shouldPollForChanges:-$defaultPollForChangesOpt}
 
 if [ "$shouldPollForChanges" = "y" ]; then
-    jq --arg pollForSourceChanges "$shouldPollForChanges" '.pipeline.stages[0].actions[0].configuration.PollForSourceChanges = true' "$customPipelineJson" > tmp.$$.json && mv tmp.$$.json "$customPipelineJson"
+shouldPollForChangesBoolean=true
 fi
+jq --arg pollForSourceChanges "$shouldPollForChangesBoolean" '.pipeline.stages[0].actions[0].configuration.PollForSourceChanges = $pollForSourceChanges' "$customPipelineJson" > tmp.$$.json && mv tmp.$$.json "$customPipelineJson"
 
 printf "  ${grn}pipeline update successfuly finished\n${end}"
