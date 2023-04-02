@@ -6,6 +6,7 @@ defaultPipeline="pipeline"
 defaultBranchName="main"
 defaultGitHubOwner="aidfromdeagland"
 defaultRepository="shop-angular-cloudfront"
+defaultConfiguration="production"
 defaultPollForChangesBoolean=false
 customPipelineJson="pipeline-$(date +'%Y_%m_%d_%H_%M').json"
 isWizardFlow=false
@@ -85,6 +86,10 @@ while [[ $# -gt 0 ]]; do
       shouldPollForChangesBoolean="$2"
       shift 2
       ;;
+      --configuration)
+      buildConfiguration="$2"
+      shift 2
+      ;;
     *)
       shift
       ;;
@@ -137,6 +142,13 @@ fi
 if [ "$shouldPollForChangesBoolean" ]; then
   jq --arg pollForSourceChanges "$shouldPollForChangesBoolean"  --arg stageIndex "$sourceStageIndex" --arg actionIndex "$sourceActionIndex" \
   '.pipeline.stages[$stageIndex | tonumber].actions[$actionIndex | tonumber].configuration.PollForSourceChanges = $pollForSourceChanges' \
+  "$customPipelineJson" > tmp.$$.json && mv tmp.$$.json "$customPipelineJson"
+fi
+
+#upd environment variables
+if [ "$buildConfiguration" ]; then
+  jq --arg configuration "$buildConfiguration" \
+  '.pipeline.stages[].actions[].configuration |= if (has("EnvironmentVariables")) then (.EnvironmentVariables |= gsub("{{BUILD_CONFIGURATION value}}"; $configuration)) else . end' \
   "$customPipelineJson" > tmp.$$.json && mv tmp.$$.json "$customPipelineJson"
 fi
 
