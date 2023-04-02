@@ -46,6 +46,8 @@ fi
 if [ -z "$1" ]; then
   echo pipeline definition path is required, please provide path for pipeline definition or pass "--wizard" flag
   exit 1
+else 
+  firstArgument="$1"
 fi
 
 # jq check
@@ -89,13 +91,12 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ $isWizardFlow = true ]]; then
+if [ $isWizardFlow = true ]; then
   pipelineJson="$pipelineName.json"
 else
-  pipelineJson="$1"
+  pipelineJson="$firstArgument"
 fi
 
-pipelineJson="$pipelineName.json"
 if [[ ! -f "$pipelineJson" ]]; then
   echo there is no JSON with "$pipelineName" name
   exit 1
@@ -107,17 +108,37 @@ jq 'del(.metadata)' "$pipelineJson" > tmp.$$.json && mv tmp.$$.json "$customPipe
 # increase version
 jq '.pipeline.version += 1' "$customPipelineJson" > tmp.$$.json && mv tmp.$$.json "$customPipelineJson"
 
+sourceStageIndex="$(jq '.pipeline.stages | map(.name == "Source") | index(true)' "$customPipelineJson")"
+sourceStageContent="$(jq --arg stageIndex "$sourceStageIndex" '.pipeline.stages[$stageIndex | tonumber]' "$customPipelineJson")"
+sourceActionIndex="$(echo "$sourceStageContent" | jq  '.actions | map(.name == "Source") | index(true)')"
+
 # upd source branch
-jq --arg branch "$branchName" '.pipeline.stages[0].actions[0].configuration.Branch = $branch' "$customPipelineJson" > tmp.$$.json && mv tmp.$$.json "$customPipelineJson"
+if [ "$branchName" ]; then
+  jq --arg branch "$branchName" --arg stageIndex "$sourceStageIndex" --arg actionIndex "$sourceActionIndex" \
+  '.pipeline.stages[$stageIndex | tonumber].actions[$actionIndex | tonumber].configuration.Branch = $branch' \
+  "$customPipelineJson" > tmp.$$.json && mv tmp.$$.json "$customPipelineJson"
+fi
 
 #upd owner
-jq --arg owner "$githubOwner" '.pipeline.stages[0].actions[0].configuration.Owner = $owner' "$customPipelineJson" > tmp.$$.json && mv tmp.$$.json "$customPipelineJson"
+if [ "$githubOwner" ]; then
+  jq --arg owner "$githubOwner" --arg stageIndex "$sourceStageIndex" --arg actionIndex "$sourceActionIndex" \
+  '.pipeline.stages[$stageIndex | tonumber].actions[$actionIndex | tonumber].configuration.Owner = $owner' \
+  "$customPipelineJson" > tmp.$$.json && mv tmp.$$.json "$customPipelineJson"
+fi
 
 #upd repository
-jq --arg repo "$githubRepository" '.pipeline.stages[0].actions[0].configuration.Repo = $repo' "$customPipelineJson" > tmp.$$.json && mv tmp.$$.json "$customPipelineJson"
+if [ "$githubRepository" ]; then
+  jq --arg repo "$githubRepository" --arg stageIndex "$sourceStageIndex" --arg actionIndex "$sourceActionIndex" \
+  '.pipeline.stages[$stageIndex | tonumber].actions[$actionIndex | tonumber].configuration.Repo = $repo' \
+  "$customPipelineJson" > tmp.$$.json && mv tmp.$$.json "$customPipelineJson"
+fi
 
 #upd pollForChanges
-jq --arg pollForSourceChanges "$shouldPollForChangesBoolean" '.pipeline.stages[0].actions[0].configuration.PollForSourceChanges = $pollForSourceChanges' "$customPipelineJson" > tmp.$$.json && mv tmp.$$.json "$customPipelineJson"
+if [ "$shouldPollForChangesBoolean" ]; then
+  jq --arg pollForSourceChanges "$shouldPollForChangesBoolean"  --arg stageIndex "$sourceStageIndex" --arg actionIndex "$sourceActionIndex" \
+  '.pipeline.stages[$stageIndex | tonumber].actions[$actionIndex | tonumber].configuration.PollForSourceChanges = $pollForSourceChanges' \
+  "$customPipelineJson" > tmp.$$.json && mv tmp.$$.json "$customPipelineJson"
+fi
 
 #show updated pipeline
 cat "$customPipelineJson" | jq
