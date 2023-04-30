@@ -30,7 +30,7 @@ echo "---> Building and transfering server - COMPLETE <---"
 echo "---> Building and transfering client files, cert and ngingx config - START <---"
 echo "$CLIENT_HOST_DIR"
 cd "$CLIENT_HOST_DIR" && npm run build && cd ../
-scp -Cr "$CLIENT_HOST_DIR"/dist/ my-cert.crt my-cert.key "$CLIENT_HOST_DIR"/nginx_configuration.conf ubuntu-sshuser:"$CLIENT_REMOTE_DIR"
+scp -Cr "$CLIENT_HOST_DIR"/dist/ "$CLIENT_HOST_DIR"/nginx_configuration.conf ubuntu-sshuser:"$CLIENT_REMOTE_DIR"
 echo "---> Building and transfering - COMPLETE <---"
 
 echo "---> Setup server - START <---"
